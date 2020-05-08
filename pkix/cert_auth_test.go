@@ -20,6 +20,7 @@ package pkix
 import (
 	"testing"
 	"time"
+	"net"
 )
 
 func TestCreateCertificateAuthority(t *testing.T) {
@@ -28,7 +29,7 @@ func TestCreateCertificateAuthority(t *testing.T) {
 		t.Fatal("Failed creating rsa key:", err)
 	}
 
-	crt, err := CreateCertificateAuthority(key, "OU", time.Now().AddDate(5, 0, 0), "test", "US", "California", "San Francisco", "CA Name", []string{".example.com"})
+	crt, err := CreateCertificateAuthority(key, "OU", time.Now().AddDate(5, 0, 0), "test", "US", "California", "San Francisco", "CA Name", []string{".example.com"}, *net.IPNet{"127.0.0.1", "255.255.255.255"})
 	if err != nil {
 		t.Fatal("Failed creating certificate authority:", err)
 	}
@@ -63,5 +64,13 @@ func TestCreateCertificateAuthority(t *testing.T) {
 
 	if crt.crt.PermittedDNSDomains[0] != ".example.com" {
 		t.Fatalf("Wrong permitted DNS domain, want %q, got %q", ".example.com", crt.crt.PermittedDNSDomains[0])
+	}
+
+	if len(crt.crt.PermittedIPRanges) != 1 {
+		t.Fatal("More than one entry found in list of permitted IP ranges")
+	}
+
+	if crt.crt.PermittedIPRanges[0] != IPNet{"127.0.0.1", "255.255.255.255"} {
+		t.Fatalf("Wrong permitted IP ranges, want %q, got %q", "127.0.0.1/255.255.255.255", crt.crt.PermittedIPRanges[0])
 	}
 }

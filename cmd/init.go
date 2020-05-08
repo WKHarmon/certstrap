@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"net"
 
 	"github.com/square/certstrap/depot"
 	"github.com/square/certstrap/pkix"
@@ -88,6 +89,10 @@ func NewInitCommand() cli.Command {
 			cli.StringSliceFlag{
 				Name:  "permit-domain",
 				Usage: "Create a CA restricted to subdomains of this domain (can be specified multiple times)",
+			},
+			cli.StringSliceFlag{
+				Name:  "permit-ip",
+				Usage: "Create a CA restricted to IP address ranges in CIDR notation (can be specified multiple times)",
 			},
 		},
 		Action: initAction,
@@ -159,7 +164,22 @@ func initAction(c *cli.Context) {
 		}
 	}
 
-	crt, err := pkix.CreateCertificateAuthority(key, c.String("organizational-unit"), expiresTime, c.String("organization"), c.String("country"), c.String("province"), c.String("locality"), c.String("common-name"), c.StringSlice("permit-domain"))
+	var permittedIPs []*net.IPNet
+	if c.IsSet("permit-ip") {
+		// convert IP string to []*net.IPNet
+		ipList := c.StringSlice("permit-ip")
+		for i := 0; i < len(ipList); i += 1 {
+			_, ipnet, err := net.ParseCIDR(ipList[i])
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error parsing permit-ip: ", ipList[i], err)
+				os.Exit(1)
+				continue
+			}
+			permittedIPs = append(permittedIPs, ipnet)
+		}
+	}
+
+	crt, err := pkix.CreateCertificateAuthority(key, c.String("organizational-unit"), expiresTime, c.String("organization"), c.String("country"), c.String("province"), c.String("locality"), c.String("common-name"), c.StringSlice("permit-domain"), permittedIPs)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Create certificate error:", err)
 		os.Exit(1)
