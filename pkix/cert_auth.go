@@ -22,11 +22,12 @@ import (
 	"crypto/x509"
 	"math/big"
 	"time"
+	"net"
 )
 
 // CreateCertificateAuthority creates Certificate Authority using existing key.
 // CertificateAuthorityInfo returned is the extra infomation required by Certificate Authority.
-func CreateCertificateAuthority(key *Key, organizationalUnit string, expiry time.Time, organization string, country string, province string, locality string, commonName string, permitDomains []string) (*Certificate, error) {
+func CreateCertificateAuthority(key *Key, organizationalUnit string, expiry time.Time, organization string, country string, province string, locality string, commonName string, permitDomains []string, permitIPs []*net.IPNet) (*Certificate, error) {
 	authTemplate := newAuthTemplate()
 
 	subjectKeyID, err := GenerateSubjectKeyID(key.Public)
@@ -57,6 +58,11 @@ func CreateCertificateAuthority(key *Key, organizationalUnit string, expiry time
 	if len(permitDomains) > 0 {
 		authTemplate.PermittedDNSDomainsCritical = true
 		authTemplate.PermittedDNSDomains = permitDomains
+	}
+
+	if len(permitIPs) > 0 {
+		authTemplate.PermittedDNSDomainsCritical = true
+		authTemplate.PermittedIPRanges = permitIPs
 	}
 
 	crtBytes, err := x509.CreateCertificate(rand.Reader, &authTemplate, &authTemplate, key.Public, key.Private)
